@@ -11,16 +11,24 @@ type service struct {
 	path string
 }
 
-func (s *service) hRoot(w http.ResponseWriter, r *http.Request) {
+func (s *service) render() ([]byte, error) {
 	f, err := os.Open(s.path)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return nil, err
 	}
 	response, err := http.Post("https://api.github.com/markdown/raw", "text/plain", f)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return nil, err
 	}
 	b, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func (s *service) hRoot(w http.ResponseWriter, r *http.Request) {
+	b, err := s.render()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
