@@ -1,6 +1,6 @@
 # mdpreview
 
-For previewing Markdown files in the browser.
+For previewing Markdown files in the browser, Github style, with live updating.
 
 ## Breadcrumbs:
 - https://developer.github.com/v3/markdown/
