@@ -6,7 +6,11 @@ import (
 	"net/http"
 	"os"
 
-	"mdpreview/server"
+	negronilogrus "github.com/meatballhat/negroni-logrus"
+	"github.com/sirupsen/logrus"
+	"github.com/urfave/negroni"
+
+	"github.com/henrywallace/mdpreview/server"
 )
 
 func main() {
@@ -20,9 +24,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	v := http.Server{
-		Addr:    ":8080",
-		Handler: h,
+
+	addr := ":8080"
+	log := logrus.New()
+	log.Info(fmt.Sprintf("Starting mdpreview server at http://localhost%s", addr))
+	n := negroni.New()
+	n.Use(negroni.NewRecovery())
+	n.Use(negronilogrus.NewMiddlewareFromLogger(log, "web"))
+	n.UseHandler(h)
+	if err := http.ListenAndServe(addr, n); err != nil {
+		log.Fatal(err)
 	}
-	log.Fatal(v.ListenAndServe())
 }

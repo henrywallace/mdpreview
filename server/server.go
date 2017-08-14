@@ -12,6 +12,7 @@ import (
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/fsnotify/fsnotify"
+	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
 
@@ -51,18 +52,20 @@ func (s *Server) Run() (http.Handler, error) {
 }
 
 func (s *Server) setupHandlers() http.Handler {
-	staticFileHandler := http.FileServer(
-		&assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, Prefix: "static"},
-	)
+	staticFileHandler := http.FileServer(&assetfs.AssetFS{
+		Asset:    Asset,
+		AssetDir: AssetDir,
+		Prefix:   "static",
+	})
 
-	var mux = http.NewServeMux()
-	mux.HandleFunc("/", s.handleIndex)
-	mux.Handle("/preview.js", staticFileHandler)
-	mux.Handle("/favicon.png", staticFileHandler)
+	r := mux.NewRouter()
+	r.HandleFunc("/", s.handleIndex).Methods("GET")
+	r.HandleFunc("/ws", s.handleWebSocket).Methods("GET")
 
-	mux.HandleFunc("/ws", s.handleWebSocket)
+	r.PathPrefix("/preview.js").Handler(staticFileHandler).Methods("GET")
+	r.PathPrefix("/favicon.ico").Handler(staticFileHandler).Methods("GET")
 
-	return mux
+	return r
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
