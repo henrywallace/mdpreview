@@ -1,13 +1,7 @@
 # mdpreview
 
-For previewing Markdown files in the browser, Github style, with live updating.
+For dynamically updating Markdown rendering in the browser, Github style.
 
-## Breadcrumbs:
-- https://developer.github.com/v3/markdown/
-- https://github.com/fsnotify/fsnotify
-- https://github.com/shurcooL/github_flavored_markdown
-- https://stackoverflow.com/questions/26559557/how-do-you-serve-a-static-html-file-using-a-go-web-server
-- https://github.com/sindresorhus/generate-github-markdown-css
-- https://github.com/sindresorhus/github-markdown-css
-- https://github.com/gorilla/websocket
-- https://github.com/gorilla/websocket/tree/master/examples/filewatch
+[![Build Status](https://travis-ci.org/henrywallace/mdpreview.svg)](https://travis-ci.org/henrywallace/mdpreview)
+[![Go Report Card](https://goreportcard.com/badge/github.com/henrywallace/mdpreview)](https://goreportcard.com/report/github.com/henrywallace/mdpreview)
+[![GoDoc](https://godoc.org/github.com/henrywallace/mdpreview?status.svg)](https://godoc.org/github.com/henrywallace/mdpreview)
