@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"html/template"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
 )
 
 // Server serves a HTML rendered Markdown preview of a Markdown file specified
@@ -23,21 +23,23 @@ type Server struct {
 	path          string
 	indexTemplate *template.Template
 	upgrader      websocket.Upgrader
+	log           *logrus.Logger
 }
 
 // New creates a new Server given some markdown path.
-func New(path string) (*Server, error) {
+func New(path string, log *logrus.Logger) (*Server, error) {
 	indexData, err := Asset("static/index.html")
 	if err != nil {
-		panic("index not found")
+		log.Fatal("index not found")
 	}
 	indexTemplate := template.Must(template.New("index").Parse(string(indexData)))
 	if err != nil {
-		panic("index template parse failed")
+		log.Fatal("index template parse failed")
 	}
 
 	return &Server{
 		path:          path,
+		log:           log,
 		indexTemplate: indexTemplate,
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
@@ -75,7 +77,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		"path": filepath.Base(s.path),
 	})
 	if err != nil {
-		http.Error(w, "Internal Server Error", 500)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 	w.Write(indexBuf.Bytes())
@@ -85,7 +87,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	ws, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		if _, ok := err.(websocket.HandshakeError); !ok {
-			log.Println(err)
+			s.log.WithError(err)
 		}
 		return
 	}
@@ -113,7 +115,7 @@ func (s *Server) render() ([]byte, error) {
 func (s *Server) watcher(changes chan<- struct{}) {
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
-		log.Fatal(err)
+		s.log.Fatal(err)
 	}
 	defer w.Close()
 
@@ -123,18 +125,22 @@ func (s *Server) watcher(changes chan<- struct{}) {
 		for {
 			select {
 			case event := <-w.Events:
+				s.log.WithFields(logrus.Fields{
+					"file":  event.Name,
+					"event": event.Op,
+				}).Info("changed file")
 				if event.Op&fsnotify.Write == fsnotify.Write {
 					changes <- struct{}{}
 				}
 			case err := <-w.Errors:
-				log.Println("error:", err)
+				s.log.WithError(err)
 			}
 		}
 	}()
 
 	err = w.Add(s.path)
 	if err != nil {
-		log.Fatal(err)
+		s.log.Fatal(err)
 	}
 	<-done
 }
@@ -149,7 +155,10 @@ func (s *Server) writer(ws *websocket.Conn) {
 	for {
 		select {
 		case <-changes:
-			rendered, _ := s.render()
+			rendered, err := s.render()
+			if err != nil {
+				s.log.Error(err)
+			}
 			ws.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := ws.WriteMessage(websocket.TextMessage, rendered); err != nil {
 				return

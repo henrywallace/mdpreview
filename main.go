@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
@@ -14,8 +13,10 @@ import (
 )
 
 func main() {
+	log := logrus.New()
+
 	path := os.Args[1]
-	s, err := server.New(path)
+	s, err := server.New(path, log)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -26,7 +27,6 @@ func main() {
 	}
 
 	addr := ":8080"
-	log := logrus.New()
 	log.Info(fmt.Sprintf("Starting mdpreview server at http://localhost%s", addr))
 	n := negroni.New()
 	n.Use(negroni.NewRecovery())
