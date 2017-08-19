@@ -1,9 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	negronilogrus "github.com/meatballhat/negroni-logrus"
 	"github.com/sirupsen/logrus"
@@ -12,27 +14,38 @@ import (
 	"github.com/henrywallace/mdpreview/server"
 )
 
+var (
+	addr  = flag.String("addr", ":8080", "address to serve preview")
+	local = flag.Bool("local", true, "whether to render locally")
+)
+
 func main() {
+	flag.Parse()
 	log := logrus.New()
 
+	if len(os.Args) < 2 {
+		log.Fatal("path must be given")
+	}
 	path := os.Args[1]
-	s, err := server.New(path, log)
+	if filepath.Ext(path) != ".md" {
+		log.Warnf("path %s doesn't look like a Markdown file")
+	}
+
+	s, err := server.New(path, log, *local)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
 	h, err := s.Run()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	addr := ":8080"
-	log.Info(fmt.Sprintf("Starting mdpreview server at http://localhost%s", addr))
+	log.Info(fmt.Sprintf("Starting mdpreview server at http://localhost%s", *addr))
 	n := negroni.New()
 	n.Use(negroni.NewRecovery())
 	n.Use(negronilogrus.NewMiddlewareFromLogger(log, "web"))
 	n.UseHandler(h)
-	if err := http.ListenAndServe(addr, n); err != nil {
+	if err := http.ListenAndServe(*addr, n); err != nil {
 		log.Fatal(err)
 	}
 }

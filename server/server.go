@@ -13,6 +13,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/russross/blackfriday"
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,10 +25,11 @@ type Server struct {
 	indexTemplate *template.Template
 	upgrader      websocket.Upgrader
 	log           *logrus.Logger
+	renderLocally bool
 }
 
 // New creates a new Server given some markdown path.
-func New(path string, log *logrus.Logger) (*Server, error) {
+func New(path string, log *logrus.Logger, renderLocally bool) (*Server, error) {
 	indexData, err := Asset("static/index.html")
 	if err != nil {
 		log.Fatal("index not found")
@@ -45,6 +47,7 @@ func New(path string, log *logrus.Logger) (*Server, error) {
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
 		},
+		renderLocally: renderLocally,
 	}, nil
 }
 
@@ -97,19 +100,31 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) render() ([]byte, error) {
-	f, err := os.Open(s.path)
-	if err != nil {
-		return nil, err
+	switch s.renderLocally {
+	case true:
+		input, err := ioutil.ReadFile(s.path)
+		if err != nil {
+			return nil, err
+		}
+		b := blackfriday.MarkdownCommon(input)
+		return b, nil
+	case false:
+		f, err := os.Open(s.path)
+		if err != nil {
+			return nil, err
+		}
+		response, err := http.Post("https://api.github.com/markdown/raw", "text/plain", f)
+		if err != nil {
+			return nil, err
+		}
+		b, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			return nil, err
+		}
+		return b, nil
+	default:
+		panic("unreachable")
 	}
-	response, err := http.Post("https://api.github.com/markdown/raw", "text/plain", f)
-	if err != nil {
-		return nil, err
-	}
-	b, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
 }
 
 func (s *Server) watcher(changes chan<- struct{}) {
