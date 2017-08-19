@@ -66,9 +66,7 @@ func (s *Server) setupHandlers() http.Handler {
 	r := mux.NewRouter()
 	r.HandleFunc("/", s.handleIndex).Methods("GET")
 	r.HandleFunc("/ws", s.handleWebSocket).Methods("GET")
-
-	r.PathPrefix("/preview.js").Handler(staticFileHandler).Methods("GET")
-	r.PathPrefix("/favicon.ico").Handler(staticFileHandler).Methods("GET")
+	r.PathPrefix("/").Handler(staticFileHandler).Methods("GET")
 
 	return r
 }
