@@ -13,7 +13,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"github.com/russross/blackfriday"
+	"github.com/shurcooL/github_flavored_markdown"
 	"github.com/sirupsen/logrus"
 )
 
@@ -104,7 +104,7 @@ func (s *Server) render() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		b := blackfriday.MarkdownCommon(input)
+		b := github_flavored_markdown.Markdown(input)
 		return b, nil
 	case false:
 		f, err := os.Open(s.path)
