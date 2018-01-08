@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	addr  = flag.String("addr", ":8080", "address to serve preview")
-	local = flag.Bool("local", true, "whether to render locally")
+	addr = flag.String("addr", ":8080", "address to serve preview")
+	api  = flag.Bool("api", false, "whether to render via the Github API")
 )
 
 func main() {
@@ -28,10 +28,13 @@ func main() {
 	}
 	path := os.Args[1]
 	if filepath.Ext(path) != ".md" {
-		log.Warnf("path %s doesn't look like a Markdown file")
+		log.Warnf("path %s doesn't look like a Markdown file", path)
+	}
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		log.Fatalf("path %s does not exist", path)
 	}
 
-	s, err := server.New(path, log, *local)
+	s, err := server.New(path, log, !*api)
 	if err != nil {
 		log.Fatal(err)
 	}
