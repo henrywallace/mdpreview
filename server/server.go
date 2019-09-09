@@ -142,7 +142,10 @@ func (s *Server) watcher(changes chan<- struct{}) {
 					"file":  event.Name,
 					"event": event.Op,
 				}).Info("changed file")
-				if event.Op&fsnotify.Write == fsnotify.Write {
+				switch event.Op {
+				case fsnotify.Remove:
+					w.Add(event.Name)
+				case fsnotify.Rename, fsnotify.Chmod, fsnotify.Write:
 					changes <- struct{}{}
 				}
 			case err := <-w.Errors:
@@ -163,12 +166,16 @@ func (s *Server) writer(ws *websocket.Conn) {
 		ws.Close()
 	}()
 
+	start := time.Now()
+	ping := 2 * time.Second
+
 	changes := make(chan struct{})
 	go s.watcher(changes)
 	for {
 		select {
 		case <-changes:
 			rendered, err := s.render()
+			s.log.Debug("rendered")
 			if err != nil {
 				s.log.Error(err)
 			}
@@ -176,7 +183,8 @@ func (s *Server) writer(ws *websocket.Conn) {
 			if err := ws.WriteMessage(websocket.TextMessage, rendered); err != nil {
 				return
 			}
-		case <-time.After(2 * time.Second):
+		case <-time.After(ping):
+			s.log.Debugf("ping %v (since %v)", ping, time.Since(start))
 			ws.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := ws.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
 				return

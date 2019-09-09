@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	negronilogrus "github.com/meatballhat/negroni-logrus"
 	"github.com/sirupsen/logrus"
@@ -15,13 +16,18 @@ import (
 )
 
 var (
-	addr = flag.String("addr", ":8080", "address to serve preview")
-	api  = flag.Bool("api", false, "whether to render via the Github API")
+	addr  = flag.String("addr", ":8080", "address to serve preview like :8080 or 0.0.0.0:7000")
+	api   = flag.Bool("api", false, "whether to render via the Github API")
+	debug = flag.Bool("debug", false, "debug logging")
 )
 
 func main() {
 	flag.Parse()
+
 	log := logrus.New()
+	if *debug {
+		log.SetLevel(logrus.DebugLevel)
+	}
 
 	if len(os.Args) < 2 {
 		log.Fatal("path must be given")
@@ -43,7 +49,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Info(fmt.Sprintf("Starting mdpreview server at http://localhost%s", *addr))
+	if strings.HasPrefix(*addr, ":") {
+		*addr = fmt.Sprintf("127.0.0.1%s", *addr)
+	}
+
+	log.Info(fmt.Sprintf("Starting mdpreview server at %s", *addr))
 	n := negroni.New()
 	n.Use(negroni.NewRecovery())
 	n.Use(negronilogrus.NewMiddlewareFromLogger(log, "web"))
